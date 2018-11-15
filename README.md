@@ -34,4 +34,4 @@ Plugin can process either selected text or whole file.
 
 # Notes
 - Port from [eCSStractor for Sublime Text](https://packagecontrol.io/packages/eCSStractor)
-- Extencion icon from [iconfinder.com](https://www.iconfinder.com/icons/2308969/css_document_file_format_type_icon)
+- Extension icon from [iconfinder.com](https://www.iconfinder.com/icons/2308969/css_document_file_format_type_icon)
