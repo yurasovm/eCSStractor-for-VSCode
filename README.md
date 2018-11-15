@@ -20,17 +20,17 @@ Plugin can process either selected text or whole file.
 
 # Settings
 
-**Brackets** - Add brackets. Useful for Sass syntax and Stylus
-**Brackets newline after** - Add new line
-**Destination** - Where to put result ("tab" or "clipboard")
-**Bem nesting** - BEM Nesting. Generate nested stylesheet for preprocessors
-**Indentation** - Indent symbol
-**Element separator** - Separator between block and element names
-**Modifier separator** - Separator between block or element and they modifier
-**Parent symbol** - Parent symbol. Ex.: &__element {}
-**Empty line before nested selector** - Empty line before nested element/modifier
-**Add comment** - Add comments to nested stylesheets for preprocessors
-**Comment style** - Comment style. Either CSS (/* */) or SCSS (//)
+- **Brackets** - Add brackets. Useful for Sass syntax and Stylus
+- **Brackets newline after** - Add new line
+- **Destination** - Where to put result ("tab" or "clipboard")
+- **Bem nesting** - BEM Nesting. Generate nested stylesheet for preprocessors
+- **Indentation** - Indent symbol
+- **Element separator** - Separator between block and element names
+- **Modifier separator** - Separator between block or element and they modifier
+- **Parent symbol** - Parent symbol. Ex.: &__element {}
+- **Empty line before nested selector** - Empty line before nested element/modifier
+- **Add comment** - Add comments to nested stylesheets for preprocessors
+- **Comment style** - Comment style. Either CSS (/* */) or SCSS (//)
 
 # Notes
 - Port from [eCSStractor for Sublime Text](https://packagecontrol.io/packages/eCSStractor)
