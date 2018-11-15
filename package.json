@@ -2,7 +2,7 @@
     "name": "ecsstractor-port",
     "displayName": "eCSStractor for VSCode",
     "description": "VSCode plugin for extracting class names from HTML and generate CSS stylesheet for following work.",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"icon": "images/icon.png",
 	"homepage": "https://github.com/yurasovm/eCSStractor-for-VSCode",
 	"repository": {
