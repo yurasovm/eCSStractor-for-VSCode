@@ -39,6 +39,11 @@ function process() {
 	}
 
 	var selectedText = editor.document.getText(editor.selection);
+
+	if ( selectedText.length == 0 ) {
+		selectedText = editor.document.getText();
+	}
+
 	var parsedEls = htmlparser.parseDOM(selectedText);
 	var processedEls = processEl(parsedEls);
 	var outputClasses = [];
