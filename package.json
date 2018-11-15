@@ -1,5 +1,5 @@
 {
-    "name": "ecsstractor_port",
+    "name": "ecsstractor-port",
     "displayName": "eCSStractor for VSCode",
     "description": "VSCode plugin for extracting class names from HTML and generate CSS stylesheet for following work.",
 	"version": "0.0.1",
@@ -12,7 +12,7 @@
 	"keywords": [
 		"ecsstractor"
 	],
-    "publisher": "Diz",
+    "publisher": "decsstraiz",
     "engines": {
         "vscode": "^1.5.0"
     },
