@@ -27,6 +27,15 @@
     ],
     "main": "./extension",
     "contributes": {
+		"menus": {
+			"editor/context": [
+				{
+					"command": "extension.ecsstractor_port_run",
+					"title": "Run",
+					"group": "eCSStractor@1"
+				}
+			]
+		},
         "commands": [
             {
                 "command": "extension.ecsstractor_port_run",
