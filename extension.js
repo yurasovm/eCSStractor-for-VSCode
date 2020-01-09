@@ -48,10 +48,25 @@ function process() {
 	var processedEls = processEl(parsedEls);
 	var outputClasses = [];
 
-	processedEls.filter((el) => {
-		return typeof el.attribs.class !== 'undefined' && el.attribs.class.trim() !== '';
-	}).forEach(el => {
-		var cssClasses = el.attribs.class.split(' ').filter(className => className.trim() !== '');
+    processedEls.filter((el) => {
+        if (el.attribs.class) {
+            return typeof el.attribs.class !== 'undefined' && el.attribs.class.trim() !== '';
+        }
+        if (el.attribs.classname) {
+            return typeof el.attribs.classname !== 'undefined' && el.attribs.classname.trim() !== '';
+        }
+		
+    }).forEach(el => {
+        var cssClasses;
+
+        if (el.attribs.class) {
+            cssClasses = el.attribs.class.split(' ').filter(className => className.trim() !== '');
+        }
+
+        if (el.attribs.classname) {
+            cssClasses = el.attribs.classname.split(' ').filter(className => className.trim() !== '');
+        }
+		
 		cssClasses.forEach(cssClass => {
 			if (outputClasses.indexOf(cssClass) === -1) {
 				outputClasses.push(cssClass);
