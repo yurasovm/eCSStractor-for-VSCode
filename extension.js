@@ -4,7 +4,6 @@
 // Object.defineProperty(exports, "__esModule", { value: true });
 const vscode = require('vscode');
 const htmlparser = require("htmlparser2");
-const ncp = require("copy-paste");
 
 var config;
 var brackets;
@@ -82,9 +81,9 @@ function process() {
 	}
 
 	if ( destination == 'clipboard' ) {
-		ncp.copy(finalString, () => {
-			vscode.window.showInformationMessage('Copied CSS format to clipboard');
-		});
+		vscode.env.clipboard.writeText(finalString)
+			.then(() => vscode.window.showInformationMessage('Copied CSS format to clipboard'))
+			.catch((err) => vscode.window.showErrorMessage(err));
 	} else {
 		vscode.workspace.openTextDocument()
 		.then((newDoc) => {
