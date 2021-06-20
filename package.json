@@ -1,8 +1,8 @@
 {
-    "name": "ecsstractor-port",
-    "displayName": "eCSStractor for VSCode",
-    "description": "VSCode plugin for extracting class names from HTML and generate CSS stylesheet for following work.",
-	"version": "0.0.3",
+	"name": "ecsstractor-port",
+	"displayName": "eCSStractor for VSCode",
+	"description": "VSCode plugin for extracting class names from HTML and generate CSS stylesheet for following work.",
+	"version": "0.0.4",
 	"icon": "images/icon.png",
 	"homepage": "https://github.com/yurasovm/eCSStractor-for-VSCode",
 	"repository": {
@@ -12,21 +12,21 @@
 	"keywords": [
 		"ecsstractor"
 	],
-    "publisher": "diz",
-    "engines": {
-        "vscode": "^1.5.0"
-    },
-    "categories": [
-        "Other"
-    ],
-    "activationEvents": [
-        "onCommand:extension.ecsstractor_port_run",
-        "onCommand:extension.ecsstractor_port_runwithbem",
-        "onCommand:extension.ecsstractor_port_runwithbemandcomments",
-        "onCommand:extension.ecsstractor_port_runwithoutbem"
-    ],
-    "main": "./extension",
-    "contributes": {
+	"publisher": "diz",
+	"engines": {
+		"vscode": "^1.5.0"
+	},
+	"categories": [
+		"Other"
+	],
+	"activationEvents": [
+		"onCommand:extension.ecsstractor_port_run",
+		"onCommand:extension.ecsstractor_port_runwithbem",
+		"onCommand:extension.ecsstractor_port_runwithbemandcomments",
+		"onCommand:extension.ecsstractor_port_runwithoutbem"
+	],
+	"main": "./extension",
+	"contributes": {
 		"menus": {
 			"editor/context": [
 				{
@@ -36,23 +36,23 @@
 				}
 			]
 		},
-        "commands": [
-            {
-                "command": "extension.ecsstractor_port_run",
-                "title": "eCSStractor Run"
-            },
-            {
-                "command": "extension.ecsstractor_port_runwithbem",
-                "title": "eCSStractor Run (With BEM Nesting)"
-            },
-            {
-                "command": "extension.ecsstractor_port_runwithbemandcomments",
-                "title": "eCSStractor Run (With BEM Nesting and comments)"
-            },
-            {
-                "command": "extension.ecsstractor_port_runwithoutbem",
-                "title": "eCSStractor Run (Without BEM Nesting)"
-            }
+		"commands": [
+			{
+				"command": "extension.ecsstractor_port_run",
+				"title": "eCSStractor Run"
+			},
+			{
+				"command": "extension.ecsstractor_port_runwithbem",
+				"title": "eCSStractor Run (With BEM Nesting)"
+			},
+			{
+				"command": "extension.ecsstractor_port_runwithbemandcomments",
+				"title": "eCSStractor Run (With BEM Nesting and comments)"
+			},
+			{
+				"command": "extension.ecsstractor_port_runwithoutbem",
+				"title": "eCSStractor Run (Without BEM Nesting)"
+			}
 		],
 		"configuration": {
 			"type": "object",
@@ -71,8 +71,8 @@
 				"ecsstractor_port.destination": {
 					"type": "string",
 					"enum": [
-							"tab",
-							"clipboard"
+						"tab",
+						"clipboard"
 					],
 					"default": "clipboard",
 					"description": "Where to put result"
@@ -80,8 +80,8 @@
 				"ecsstractor_port.attributes": {
 					"type": "string",
 					"enum": [
-							"class",
-							"className"
+						"class",
+						"className"
 					],
 					"default": "class",
 					"description": "Attribute name \"class\" or \"className\" for jsx"
