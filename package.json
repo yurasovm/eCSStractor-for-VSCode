@@ -81,7 +81,8 @@
 					"type": "string",
 					"enum": [
 						"class",
-						"className"
+						"className",
+						"classAndClassName"
 					],
 					"default": "class",
 					"description": "Attribute name \"class\" or \"className\" for jsx"

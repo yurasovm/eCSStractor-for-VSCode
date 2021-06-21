@@ -1,5 +1,5 @@
 const vscode = require('vscode');
-const htmlparser = require('htmlparser2');
+const htmlparser2 = require('htmlparser2');
 
 function pasteToClipboard(text) {
   vscode.env.clipboard.writeText(text)
@@ -19,23 +19,46 @@ function pasteToNewDoc(text) {
     });
 }
 
-function processEl(list) {
-  const finalList = [];
+function parseHtmlClasses(text, opts) {
+  const classSet = new Set();
 
-  function recursiveAdd(el) {
-    if (el.type === 'tag') {
-      finalList.push(el);
-      if (typeof el.children !== 'undefined' && el.children.length > 0) {
-        el.children.forEach(childEl => {
-          recursiveAdd(childEl);
-        });
-      }
-    }
+  const tagClassHadler = (name, attribs) => {
+    if (!attribs.class) return;
+
+    attribs.class.split(/\s+/)
+      .forEach(cl => cl && classSet.add(cl));
+  };
+
+  const tagClassNameHadler = (name, attribs) => {
+    if (!attribs.classname) return;
+
+    attribs.classname.split(/\s+/)
+      .forEach(cl => cl && classSet.add(cl));
+  };
+
+  const tagClassAndNameHadler = (name, attribs) => {
+    tagClassHadler(name, attribs);
+    tagClassNameHadler(name, attribs);
+  };
+
+  let onOpentagHandler = tagClassHadler;
+  switch (opts.attributes) {
+    case 'class':
+      onOpentagHandler = tagClassHadler;
+      break;
+    case 'className':
+      onOpentagHandler = tagClassNameHadler;
+      break;
+    case 'classAndClassName':
+      onOpentagHandler = tagClassAndNameHadler;
+      break;
   }
 
-  // Start recursion
-  list.forEach(element => recursiveAdd(element));
-  return finalList;
+  const parser = new htmlparser2.Parser({ onopentag: onOpentagHandler }, { lowerCaseAttributeNames: true });
+  parser.write(text);
+  parser.end();
+
+  return classSet;
 }
 
 function process(opts) {
@@ -48,25 +71,10 @@ function process(opts) {
     editor.document.getText() :
     editor.document.getText(editor.selection);
 
-  const parsedEls = htmlparser.parseDOM(selectedText);
-  const processedEls = processEl(parsedEls);
-  const classesSet = new Set();
-
-  processedEls.forEach(el => {
-    const classString =
-      (el.attribs.class && el.attribs.class.trim()) ||
-      (el.attribs.classname && el.attribs.classname.trim()) || '';
-
-    const classList = classString.split(/\s+/).filter(Boolean);
-    classList.forEach(cssClass => classesSet.add(cssClass));
-  });
-
-  let finalString;
-  if (opts.bem_nesting) {
-    finalString = generateBEM(classesSet, opts);
-  } else {
-    finalString = generateFlat(classesSet, opts);
-  }
+  const classSet = parseHtmlClasses(selectedText, opts);
+  const finalString = opts.bem_nesting ?
+    generateBEM(classSet, opts) :
+    generateFlat(classSet, opts);
 
   if (opts.destination === 'clipboard') {
     pasteToClipboard(finalString);
@@ -89,6 +97,7 @@ function getOptionts(override = {}) {
     brackets_newline_after: config.get('brackets_newline_after'),
     destination: config.get('destination'),
     bem_nesting: config.get('bem_nesting'),
+    attributes: config.get('attributes'),
   };
 
   return { ...options, ...override };
@@ -156,7 +165,7 @@ class TextLine {
   }
 }
 
-function buildRuleStrings(rule, comment, children = [], opts = {}) {
+function buildRuleLines(selector, comment, children = [], opts = {}) {
   const output = [];
 
   if (opts.empty_line_before_nested_selector) {
@@ -173,18 +182,20 @@ function buildRuleStrings(rule, comment, children = [], opts = {}) {
   }
 
   const bracketOpen = opts.brackets ? ' {' : '';
-  output.push(new TextLine(rule + bracketOpen));
-
-  children.forEach(s => {
-    output.push(s.incIndent());
-  });
-
-  if (children.length === 0 && opts.brackets_newline_after) {
-    output.push(new TextLine('', 1));
-  }
-
   const bracketClose = opts.brackets ? '}' : '';
-  output.push(new TextLine(bracketClose));
+
+  if (children.length === 0) {
+    if (opts.brackets_newline_after) {
+      output.push(new TextLine(selector + bracketOpen));
+      output.push(new TextLine(bracketClose));
+    } else {
+      output.push(new TextLine(selector + bracketOpen + bracketClose));
+    }
+  } else {
+    output.push(new TextLine(selector + bracketOpen));
+    children.forEach(s => output.push(s.incIndent()));
+    output.push(new TextLine(bracketClose));
+  }
 
   return output;
 }
@@ -245,8 +256,8 @@ function generateBEM(classesSet, opts) {
 
     for (const modifier of block.modifiers) {
       const comment = add_comments ? '.' + block.name + modifier_separator + modifier : '';
-      const rule = buildRuleStrings(parent_symbol + modifier_separator + modifier, comment, [], opts);
-      blockMods.push(...rule);
+      const lines = buildRuleLines(parent_symbol + modifier_separator + modifier, comment, [], opts);
+      blockMods.push(...lines);
     }
 
     for (const element of block.elements.values()) {
@@ -254,18 +265,18 @@ function generateBEM(classesSet, opts) {
 
       for (const modifier of element.modifiers) {
         const comment = add_comments ? '.' + block.name + element_separator + element.name + modifier_separator + modifier : '';
-        const rule = buildRuleStrings(parent_symbol + modifier_separator + modifier, comment, [], opts);
-        elMods.push(...rule);
+        const lines = buildRuleLines(parent_symbol + modifier_separator + modifier, comment, [], opts);
+        elMods.push(...lines);
       }
 
       const comment = add_comments ? '.' + block.name + element_separator + element.name : '';
-      const rule = buildRuleStrings(parent_symbol + element_separator + element.name, comment, elMods, opts);
-      blockEls.push(...rule);
+      const lines = buildRuleLines(parent_symbol + element_separator + element.name, comment, elMods, opts);
+      blockEls.push(...lines);
     }
 
     const comment = '';
-    const rule = buildRuleStrings('.' + block.name, comment, [...blockMods, ...blockEls], opts);
-    indentedStrings.push(...rule);
+    const lines = buildRuleLines('.' + block.name, comment, [...blockMods, ...blockEls], opts);
+    indentedStrings.push(...lines);
   }
 
   return indentedStrings
@@ -277,9 +288,9 @@ function generateFlat(classesSet, opts) {
   const indentation = opts.indentation;
   const indentedStrings = [];
 
-  for (const selector of classesSet) {
-    const rule = buildRuleStrings('.' + selector, null, [], opts);
-    indentedStrings.push(...rule);
+  for (const className of classesSet) {
+    const lines = buildRuleLines('.' + className, null, [], opts);
+    indentedStrings.push(...lines);
   }
 
   return indentedStrings
