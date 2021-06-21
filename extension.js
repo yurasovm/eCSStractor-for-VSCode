@@ -85,6 +85,18 @@ function process(opts) {
 
 function getOptionts(override = {}) {
   const config = vscode.workspace.getConfiguration('ecsstractor_port');
+
+  const ignoreRegexList = config.get('ignoreRegex');
+  const ignoreRegex = [];
+
+  for (const regexpStr of ignoreRegexList) {
+    try {
+      const regExp = new RegExp(regexpStr);
+      ignoreRegex.push(regExp);
+    }
+    catch(e) {}
+  }
+
   const options = {
     indentation: config.get('indentation'),
     element_separator: config.get('element_separator'),
@@ -98,6 +110,8 @@ function getOptionts(override = {}) {
     destination: config.get('destination'),
     bem_nesting: config.get('bem_nesting'),
     attributes: config.get('attributes'),
+    ignore: config.get('ignore'),
+    ignoreRegex: ignoreRegex,
   };
 
   return { ...options, ...override };
@@ -218,6 +232,9 @@ function generateBEM(classesSet, opts) {
     if (isElement) {
       const [bName, elRest] = selector.split(element_separator);
 
+      if (opts.ignore.includes(bName)) continue;
+      if (opts.ignoreRegex.some(r => r.test(bName))) continue;
+
       const isExistBlock = blocksMap.has(bName);
       const block = isExistBlock ? blocksMap.get(bName) : { name: bName, elements: new Map(), modifiers: new Set() };
 
@@ -237,6 +254,9 @@ function generateBEM(classesSet, opts) {
 
     } else {
       const [bName, bMod] = selector.split(modifier_separator);
+      
+      if (opts.ignore.includes(bName)) continue;
+      if (opts.ignoreRegex.some(r => r.test(bName))) continue;
 
       const isExistBlock = blocksMap.has(bName);
       const block = isExistBlock ? blocksMap.get(bName) : { name: bName, elements: new Map(), modifiers: new Set() };
@@ -289,6 +309,10 @@ function generateFlat(classesSet, opts) {
   const indentedStrings = [];
 
   for (const className of classesSet) {
+
+    if (opts.ignore.includes(className)) continue;
+    if (opts.ignoreRegex.some(r => r.test(className))) continue;
+
     const lines = buildRuleLines('.' + className, null, [], opts);
     indentedStrings.push(...lines);
   }

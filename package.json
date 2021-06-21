@@ -84,8 +84,29 @@
 						"className",
 						"classAndClassName"
 					],
+					"enumDescriptions": [
+						"class",
+						"className",
+						"both class & className"
+					],
 					"default": "class",
 					"description": "Attribute name \"class\" or \"className\" for jsx"
+				},
+				"ecsstractor_port.ignore": {
+					"type": "array",
+					"default": [],
+					"items": {
+						"type": "string"
+					},
+					"description": "List of classnames to ignore. Useful for helper classes, that probably already described. Ex., clearfix."
+				},
+				"ecsstractor_port.ignoreRegex": {
+					"type": "array",
+					"default": [],
+					"items": {
+						"type": "string"
+					},
+					"description": "Similar to ignore option, but use RegEx to ignore. Ex., ^js- will ingore all classes started with js-."
 				},
 				"ecsstractor_port.bem_nesting": {
 					"type": "boolean",
