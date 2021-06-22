@@ -20,17 +20,17 @@
 		"Other"
 	],
 	"activationEvents": [
-		"onCommand:extension.ecsstractor_port_run",
-		"onCommand:extension.ecsstractor_port_runwithbem",
-		"onCommand:extension.ecsstractor_port_runwithbemandcomments",
-		"onCommand:extension.ecsstractor_port_runwithoutbem"
+		"onCommand:ecsstractor-port.run",
+		"onCommand:ecsstractor-port.runwithbem",
+		"onCommand:ecsstractor-port.runwithbemandcomments",
+		"onCommand:ecsstractor-port.runwithoutbem"
 	],
 	"main": "./extension",
 	"contributes": {
 		"menus": {
 			"editor/context": [
 				{
-					"command": "extension.ecsstractor_port_run",
+					"command": "ecsstractor-port.run",
 					"title": "Run",
 					"group": "eCSStractor@1"
 				}
@@ -38,37 +38,42 @@
 		},
 		"commands": [
 			{
-				"command": "extension.ecsstractor_port_run",
+				"command": "ecsstractor-port.run",
 				"title": "eCSStractor Run"
 			},
 			{
-				"command": "extension.ecsstractor_port_runwithbem",
+				"command": "ecsstractor-port.runwithbem",
 				"title": "eCSStractor Run (With BEM Nesting)"
 			},
 			{
-				"command": "extension.ecsstractor_port_runwithbemandcomments",
+				"command": "ecsstractor-port.runwithbemandcomments",
 				"title": "eCSStractor Run (With BEM Nesting and comments)"
 			},
 			{
-				"command": "extension.ecsstractor_port_runwithoutbem",
+				"command": "ecsstractor-port.runwithoutbem",
 				"title": "eCSStractor Run (Without BEM Nesting)"
 			}
 		],
 		"configuration": {
 			"type": "object",
-			"title": "eCSSTractor for VSCode configuration",
+			"title": "eCSSTractor for VSCode",
 			"properties": {
-				"ecsstractor_port.brackets": {
+				"ecsstractor-port.brackets": {
 					"type": "boolean",
 					"default": true,
 					"description": "Add brackets. Useful for Sass syntax and Stylus"
 				},
-				"ecsstractor_port.brackets_newline_after": {
+				"ecsstractor-port.bracketsNewLineAfter": {
 					"type": "boolean",
 					"default": true,
-					"description": "Add new line"
+					"description": "Add new line after open bracket"
 				},
-				"ecsstractor_port.destination": {
+				"ecsstractor-port.emptyLineBeforeSelector": {
+					"type": "boolean",
+					"default": true,
+					"description": "Empty line before selector"
+				},
+				"ecsstractor-port.destination": {
 					"type": "string",
 					"enum": [
 						"tab",
@@ -77,80 +82,75 @@
 					"default": "clipboard",
 					"description": "Where to put result"
 				},
-				"ecsstractor_port.attributes": {
+				"ecsstractor-port.attributes": {
 					"type": "string",
 					"enum": [
 						"class",
 						"className",
 						"classAndClassName"
 					],
-					"enumDescriptions": [
-						"class",
-						"className",
-						"both class & className"
+					"markdownEnumDescriptions": [
+						"only `class` attribute",
+						"only `className` attribute",
+						"both `class` & `className` attributes"
 					],
 					"default": "class",
-					"description": "Attribute name \"class\" or \"className\" for jsx"
+					"markdownDescription": "Attribute name `class` or `className` for jsx"
 				},
-				"ecsstractor_port.ignore": {
+				"ecsstractor-port.ignore": {
 					"type": "array",
 					"default": [],
 					"items": {
 						"type": "string"
 					},
-					"description": "List of classnames to ignore. Useful for helper classes, that probably already described. Ex., clearfix."
+					"markdownDescription": "List of classnames to ignore. Useful for helper classes, that probably already described. Ex., `clearfix`"
 				},
-				"ecsstractor_port.ignoreRegex": {
+				"ecsstractor-port.ignoreRegex": {
 					"type": "array",
 					"default": [],
 					"items": {
 						"type": "string"
 					},
-					"description": "Similar to ignore option, but use RegEx to ignore. Ex., ^js- will ingore all classes started with js-."
+					"markdownDescription": "Similar to ignore option, but use RegEx to ignore. Ex., `^js-` will ingore all classes started with js-"
 				},
-				"ecsstractor_port.bem_nesting": {
-					"type": "boolean",
-					"default": false,
-					"description": "BEM Nesting. Generate nested stylesheet for preprocessors"
-				},
-				"ecsstractor_port.indentation": {
+				"ecsstractor-port.indentation": {
 					"type": "string",
 					"default": "\t",
 					"description": "Indent symbol"
 				},
-				"ecsstractor_port.element_separator": {
-					"type": "string",
-					"default": "__",
-					"description": "Separator between block and element names"
-				},
-				"ecsstractor_port.modifier_separator": {
-					"type": "string",
-					"default": "_",
-					"description": "Separator between block or element and they modifier"
-				},
-				"ecsstractor_port.parent_symbol": {
-					"type": "string",
-					"default": "&",
-					"description": "Parent symbol. Ex.: &__element {}"
-				},
-				"ecsstractor_port.empty_line_before_nested_selector": {
-					"type": "boolean",
-					"default": true,
-					"description": "Empty line before nested element/modifier"
-				},
-				"ecsstractor_port.add_comment": {
-					"type": "boolean",
-					"default": true,
-					"description": "Add comments to nested stylesheets for preprocessors"
-				},
-				"ecsstractor_port.comment_style": {
+				"ecsstractor-port.commentStyle": {
 					"type": "string",
 					"enum": [
 						"css",
 						"scss"
 					],
 					"default": "scss",
-					"description": "Comment style. Either CSS (/* */) or SCSS (//)"
+					"markdownDescription": "Comment style. Either CSS `/* comment text */` or SCSS `// comment text`"
+				},
+				"ecsstractor-port.bemNesting.enable": {
+					"type": "boolean",
+					"default": false,
+					"description": "BEM Nesting. Generate nested stylesheet for preprocessors"
+				},
+				"ecsstractor-port.bemNesting.addComment": {
+					"type": "boolean",
+					"default": true,
+					"description": "Add comments to nested stylesheets for preprocessors"
+				},
+				"ecsstractor-port.bemNesting.parentSymbol": {
+					"type": "string",
+					"default": "&",
+					"markdownDescription": "Parent symbol. Ex.: `&__element {}`"
+				},
+				"ecsstractor-port.bemNesting.elementSeparator": {
+					"type": "string",
+					"default": "__",
+					"description": "Separator between block and element names"
+				},
+				"ecsstractor-port.bemNesting.modifierSeparator": {
+					"type": "string",
+					"default": "--",
+					"description": "Separator between block or element and they modifier"
 				}
 			}
 		}

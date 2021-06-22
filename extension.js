@@ -72,7 +72,7 @@ function process(opts) {
     editor.document.getText(editor.selection);
 
   const classSet = parseHtmlClasses(selectedText, opts);
-  const finalString = opts.bem_nesting ?
+  const finalString = opts.bemNesting ?
     generateBEM(classSet, opts) :
     generateFlat(classSet, opts);
 
@@ -83,73 +83,72 @@ function process(opts) {
   }
 }
 
-function getOptionts(override = {}) {
-  const config = vscode.workspace.getConfiguration('ecsstractor_port');
-
-  const ignoreRegexList = config.get('ignoreRegex');
-  const ignoreRegex = [];
-
-  for (const regexpStr of ignoreRegexList) {
-    try {
-      const regExp = new RegExp(regexpStr);
-      ignoreRegex.push(regExp);
-    }
-    catch(e) {}
+function tryParseRegex(regStr) {
+  try {
+    return new RegExp(regStr);
   }
+  catch(e) {
+    return null;
+  }
+}
+
+function getOptionts(override = {}) {
+  const config = vscode.workspace.getConfiguration('ecsstractor-port');
 
   const options = {
     indentation: config.get('indentation'),
-    element_separator: config.get('element_separator'),
-    modifier_separator: config.get('modifier_separator'),
-    parent_symbol: config.get('parent_symbol'),
-    empty_line_before_nested_selector: config.get('empty_line_before_nested_selector'),
-    add_comments: config.get('add_comment'),
-    comment_style: config.get('comment_style'),
+    commentStyle: config.get('commentStyle'),
     brackets: config.get('brackets'),
-    brackets_newline_after: config.get('brackets_newline_after'),
+    bracketsNewLineAfter: config.get('bracketsNewLineAfter'),
+    emptyLineBeforeSelector: config.get('emptyLineBeforeSelector'),
     destination: config.get('destination'),
-    bem_nesting: config.get('bem_nesting'),
     attributes: config.get('attributes'),
     ignore: config.get('ignore'),
-    ignoreRegex: ignoreRegex,
+    ignoreRegex: config.get('ignoreRegex').map(tryParseRegex).filter(Boolean),
+
+    bemNesting: config.get('bemNesting.enable'),
+    parentSymbol: config.get('bemNesting.parentSymbol'),
+    elementSeparator: config.get('bemNesting.elementSeparator'),
+    modifierSeparator: config.get('bemNesting.modifierSeparator'),
+    addComment: config.get('bemNesting.addComment'),
   };
 
   return { ...options, ...override };
 }
 
 function activate(context) {
-  const run = vscode.commands.registerCommand('extension.ecsstractor_port_run', () => {
+  const run = vscode.commands.registerCommand('ecsstractor-port.run', () => {
     const options = getOptionts();
     process(options);
   });
 
-  const runWithBem = vscode.commands.registerCommand('extension.ecsstractor_port_runwithbem', () => {
+  const runWithBem = vscode.commands.registerCommand('ecsstractor-port.runwithbem', () => {
     const override = {
-      add_comments: false,
+      addComment: false,
       // brackets: true,
-      bem_nesting: true,
+      bemNesting: true,
     };
 
     const options = getOptionts(override);
     process(options);
   });
 
-  const runWithBemAndComments = vscode.commands.registerCommand('extension.ecsstractor_port_runwithbemandcomments', () => {
+  const runWithBemAndComments = vscode.commands.registerCommand('ecsstractor-port.runwithbemandcomments', () => {
     const override = {
-      add_comments: true,
+      addComment: true,
       // brackets: true,
-      bem_nesting: true,
+      bemNesting: true,
     };
 
     const options = getOptionts(override);
     process(options);
   });
 
-  const runWithoutBem = vscode.commands.registerCommand('extension.ecsstractor_port_runwithoutbem', () => {
+  const runWithoutBem = vscode.commands.registerCommand('ecsstractor-port.runwithoutbem', () => {
     const override = {
-      add_comments: false,
+      addComment: false,
       // brackets: false,
-      bem_nesting: false,
+      bemNesting: false,
     };
 
     const options = getOptionts(override);
@@ -182,12 +181,12 @@ class TextLine {
 function buildRuleLines(selector, comment, children = [], opts = {}) {
   const output = [];
 
-  if (opts.empty_line_before_nested_selector) {
+  if (opts.emptyLineBeforeSelector) {
     output.push(new TextLine('', 0, false));
   }
 
   if (comment) {
-    const isSCSS = opts.comment_style === 'scss';
+    const isSCSS = opts.commentStyle === 'scss';
     const commentOpen = isSCSS ? '// ' : '/* ';
     const commentClose = isSCSS ? '' : ' */';
 
@@ -199,7 +198,7 @@ function buildRuleLines(selector, comment, children = [], opts = {}) {
   const bracketClose = opts.brackets ? '}' : '';
 
   if (children.length === 0) {
-    if (opts.brackets_newline_after) {
+    if (opts.bracketsNewLineAfter) {
       output.push(new TextLine(selector + bracketOpen));
       output.push(new TextLine(bracketClose));
     } else {
@@ -217,20 +216,20 @@ function buildRuleLines(selector, comment, children = [], opts = {}) {
 function generateBEM(classesSet, opts) {
   const {
     indentation,
-    element_separator,
-    modifier_separator,
-    parent_symbol,
-    add_comments
+    elementSeparator,
+    modifierSeparator,
+    parentSymbol,
+    addComment
   } = opts;
 
   const blocksMap = new Map();
 
   // build map
   for (const selector of classesSet) {
-    const isElement = selector.includes(element_separator);
+    const isElement = selector.includes(elementSeparator);
 
     if (isElement) {
-      const [bName, elRest] = selector.split(element_separator);
+      const [bName, elRest] = selector.split(elementSeparator);
 
       if (opts.ignore.includes(bName)) continue;
       if (opts.ignoreRegex.some(r => r.test(bName))) continue;
@@ -241,7 +240,7 @@ function generateBEM(classesSet, opts) {
       if (!isExistBlock) blocksMap.set(bName, block);
 
       // get element and its modifier
-      const [elName, elMod] = elRest.split(modifier_separator);
+      const [elName, elMod] = elRest.split(modifierSeparator);
 
       const isExistElement = block.elements.has(elName);
       const element = isExistElement ? block.elements.get(elName) : { name: elName, modifiers: new Set() };
@@ -253,7 +252,7 @@ function generateBEM(classesSet, opts) {
       }
 
     } else {
-      const [bName, bMod] = selector.split(modifier_separator);
+      const [bName, bMod] = selector.split(modifierSeparator);
       
       if (opts.ignore.includes(bName)) continue;
       if (opts.ignoreRegex.some(r => r.test(bName))) continue;
@@ -275,8 +274,8 @@ function generateBEM(classesSet, opts) {
     const blockEls = [];
 
     for (const modifier of block.modifiers) {
-      const comment = add_comments ? '.' + block.name + modifier_separator + modifier : '';
-      const lines = buildRuleLines(parent_symbol + modifier_separator + modifier, comment, [], opts);
+      const comment = addComment ? '.' + block.name + modifierSeparator + modifier : '';
+      const lines = buildRuleLines(parentSymbol + modifierSeparator + modifier, comment, [], opts);
       blockMods.push(...lines);
     }
 
@@ -284,13 +283,13 @@ function generateBEM(classesSet, opts) {
       const elMods = [];
 
       for (const modifier of element.modifiers) {
-        const comment = add_comments ? '.' + block.name + element_separator + element.name + modifier_separator + modifier : '';
-        const lines = buildRuleLines(parent_symbol + modifier_separator + modifier, comment, [], opts);
+        const comment = addComment ? '.' + block.name + elementSeparator + element.name + modifierSeparator + modifier : '';
+        const lines = buildRuleLines(parentSymbol + modifierSeparator + modifier, comment, [], opts);
         elMods.push(...lines);
       }
 
-      const comment = add_comments ? '.' + block.name + element_separator + element.name : '';
-      const lines = buildRuleLines(parent_symbol + element_separator + element.name, comment, elMods, opts);
+      const comment = addComment ? '.' + block.name + elementSeparator + element.name : '';
+      const lines = buildRuleLines(parentSymbol + elementSeparator + element.name, comment, elMods, opts);
       blockEls.push(...lines);
     }
 
