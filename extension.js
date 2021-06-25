@@ -1,386 +1,328 @@
-// 'use strict';
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
-// Object.defineProperty(exports, "__esModule", { value: true });
 const vscode = require('vscode');
-const htmlparser = require("htmlparser2");
-const ncp = require("copy-paste");
+const htmlparser2 = require('htmlparser2');
 
-var config;
-var brackets;
-var brackets_newline_after;
-var destination;
-var add_comments;
-var bem_nesting;
-
-function processEl(list) {
-	var finalList = [];
-	function recursiveAdd(el) {
-		if (el.type === 'tag') {
-			finalList.push(el);
-			if (typeof el.children !== 'undefined' && el.children.length > 0) {
-				el.children.forEach(childEl => {
-					recursiveAdd(childEl);
-				});
-			}
-		}
-	}
-	// Start recursion
-	list.forEach(element => {
-		recursiveAdd(element);
-	});
-	return finalList;
+function pasteToClipboard(text) {
+  vscode.env.clipboard.writeText(text)
+    .then(() => vscode.window.showInformationMessage('Copied CSS format to clipboard'))
+    .catch((err) => vscode.window.showErrorMessage(err));
 }
 
-function process() {
-	var editor = vscode.window.activeTextEditor;
-	if (!editor) {
-		return;
-	}
+function pasteToNewDoc(text) {
+  vscode.workspace.openTextDocument()
+    .then((newDoc) => {
+      return vscode.window.showTextDocument(newDoc, 1, false)
+        .then((editor) => {
+          return editor.edit((editBuilder) => {
+            editBuilder.insert(new vscode.Position(0, 0), text);
+          });
+        });
+    });
+}
 
-	var selectedText = editor.document.getText(editor.selection);
+function parseHtmlClasses(text, opts) {
+  const classSet = new Set();
 
-	if ( selectedText.length == 0 ) {
-		selectedText = editor.document.getText();
-	}
+  const tagClassHadler = (name, attribs) => {
+    if (!attribs.class) return;
 
-	var parsedEls = htmlparser.parseDOM(selectedText);
-	var processedEls = processEl(parsedEls);
-	var outputClasses = [];
+    attribs.class.split(/\s+/)
+      .forEach(cl => cl && classSet.add(cl));
+  };
 
-	processedEls.filter((el) => {
-		return typeof el.attribs.class !== 'undefined' && el.attribs.class.trim() !== '';
-	}).forEach(el => {
-		var cssClasses = el.attribs.class.split(' ').filter(className => className.trim() !== '');
-		cssClasses.forEach(cssClass => {
-			if (outputClasses.indexOf(cssClass) === -1) {
-				outputClasses.push(cssClass);
-			}
-		});
-	});
+  const tagClassNameHadler = (name, attribs) => {
+    if (!attribs.classname) return;
 
-	if ( bem_nesting ) {
-		var finalString = generateBEM( outputClasses, add_comments );
-	} else {
-		// Format and combine string for output
-		var finalString = outputClasses.reduce((outputClassText, classToAdd) => {
-			var open_bracket = '';
-			var close_bracket = '';
+    attribs.classname.split(/\s+/)
+      .forEach(cl => cl && classSet.add(cl));
+  };
 
-			if ( brackets ) {
-				var open_bracket = '{';
-				var close_bracket = '}';
-			}
+  const tagClassAndNameHadler = (name, attribs) => {
+    tagClassHadler(name, attribs);
+    tagClassNameHadler(name, attribs);
+  };
 
-			if ( !brackets_newline_after ) {
-				var cleanString = `.${classToAdd} ${open_bracket}${close_bracket}`;
-			} else {
-				var cleanString = `.${classToAdd} ${open_bracket}\n${close_bracket}`;
-			}
-			return outputClassText + (outputClassText !== '' ? '\n' : '') + cleanString;
-		}, '');
-	}
+  let onOpentagHandler = tagClassHadler;
+  switch (opts.attributes) {
+    case 'class':
+      onOpentagHandler = tagClassHadler;
+      break;
+    case 'className':
+      onOpentagHandler = tagClassNameHadler;
+      break;
+    case 'classAndClassName':
+      onOpentagHandler = tagClassAndNameHadler;
+      break;
+  }
 
-	if ( destination == 'clipboard' ) {
-		ncp.copy(finalString, () => {
-			vscode.window.showInformationMessage('Copied CSS format to clipboard');
-		});
-	} else {
-		vscode.workspace.openTextDocument()
-		.then((newDoc) => {
-			return vscode.window.showTextDocument(newDoc, 1, false)
-				.then((editor) => {
-					return editor.edit((editBuilder) => {
-						editBuilder.insert(new vscode.Position(0, 0), finalString );
-					});
-				});
-		});
-	}
+  const parser = new htmlparser2.Parser({ onopentag: onOpentagHandler }, { lowerCaseAttributeNames: true });
+  parser.write(text);
+  parser.end();
+
+  return classSet;
+}
+
+function process(opts) {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) {
+    return;
+  }
+
+  const selectedText = editor.selection.isEmpty ?
+    editor.document.getText() :
+    editor.document.getText(editor.selection);
+
+  const classSet = parseHtmlClasses(selectedText, opts);
+  const finalString = opts.bemNesting ?
+    generateBEM(classSet, opts) :
+    generateFlat(classSet, opts);
+
+  if (opts.destination === 'clipboard') {
+    pasteToClipboard(finalString);
+  } else {
+    pasteToNewDoc(finalString);
+  }
+}
+
+function tryParseRegex(regStr) {
+  try {
+    return new RegExp(regStr);
+  }
+  catch(e) {
+    return null;
+  }
+}
+
+function getOptionts(override = {}) {
+  const config = vscode.workspace.getConfiguration('ecsstractor-port');
+
+  const options = {
+    indentation: config.get('indentation'),
+    commentStyle: config.get('commentStyle'),
+    brackets: config.get('brackets'),
+    bracketsNewLineAfter: config.get('bracketsNewLineAfter'),
+    emptyLineBeforeSelector: config.get('emptyLineBeforeSelector'),
+    destination: config.get('destination'),
+    attributes: config.get('attributes'),
+    ignore: config.get('ignore'),
+    ignoreRegex: config.get('ignoreRegex').map(tryParseRegex).filter(Boolean),
+
+    bemNesting: config.get('bemNesting.enable'),
+    parentSymbol: config.get('bemNesting.parentSymbol'),
+    elementSeparator: config.get('bemNesting.elementSeparator'),
+    modifierSeparator: config.get('bemNesting.modifierSeparator'),
+    addComment: config.get('bemNesting.addComment'),
+  };
+
+  return { ...options, ...override };
 }
 
 function activate(context) {
-	let run = vscode.commands.registerCommand('extension.ecsstractor_port_run', function () {
-		config = vscode.workspace.getConfiguration('ecsstractor_port');
-		add_comments = config.get('add_comment');
-		brackets = config.get('brackets');
-		brackets_newline_after = config.get('brackets_newline_after');
-		destination = config.get('destination');
-		bem_nesting = config.get('bem_nesting');
+  const run = vscode.commands.registerCommand('ecsstractor-port.run', () => {
+    const options = getOptionts();
+    process(options);
+  });
 
-		process();
-	});
+  const runWithBem = vscode.commands.registerCommand('ecsstractor-port.runwithbem', () => {
+    const override = {
+      addComment: false,
+      // brackets: true,
+      bemNesting: true,
+    };
 
-	let runwithbem = vscode.commands.registerCommand('extension.ecsstractor_port_runwithbem', function () {
-		config = vscode.workspace.getConfiguration('ecsstractor_port');
-		add_comments = false;
-		brackets = true;
-		bem_nesting = true;
-		brackets_newline_after = config.get('brackets_newline_after');
-		destination = config.get('destination');
+    const options = getOptionts(override);
+    process(options);
+  });
 
-		process();
-	});
+  const runWithBemAndComments = vscode.commands.registerCommand('ecsstractor-port.runwithbemandcomments', () => {
+    const override = {
+      addComment: true,
+      // brackets: true,
+      bemNesting: true,
+    };
 
-	let runwithbemandcomments = vscode.commands.registerCommand('extension.ecsstractor_port_runwithbemandcomments', function () {
-		config = vscode.workspace.getConfiguration('ecsstractor_port');
-		add_comments = true;
-		brackets = true;
-		bem_nesting = true;
-		brackets_newline_after = config.get('brackets_newline_after');
-		destination = config.get('destination');
+    const options = getOptionts(override);
+    process(options);
+  });
 
-		process();
-	});
+  const runWithoutBem = vscode.commands.registerCommand('ecsstractor-port.runwithoutbem', () => {
+    const override = {
+      addComment: false,
+      // brackets: false,
+      bemNesting: false,
+    };
 
-	let runwithoutbem = vscode.commands.registerCommand('extension.ecsstractor_port_runwithoutbem', function () {
-		config = vscode.workspace.getConfiguration('ecsstractor_port');
-		add_comments = false;
-		brackets = false;
-		bem_nesting = false;
-		brackets_newline_after = config.get('brackets_newline_after');
-		destination = config.get('destination');
+    const options = getOptionts(override);
+    process(options);
+  });
 
-		process();
-	});
-
-	context.subscriptions.push(run);
-	context.subscriptions.push(runwithbem);
-	context.subscriptions.push(runwithbemandcomments);
-	context.subscriptions.push(runwithoutbem);
+  context.subscriptions.push(run);
+  context.subscriptions.push(runWithBem);
+  context.subscriptions.push(runWithBemAndComments);
+  context.subscriptions.push(runWithoutBem);
 }
 
-function generateBEM( data, add_comments ) {
-	var indentation = config.get('indentation');
-	var element_separator = config.get('element_separator');
-	var modifier_separator = config.get('modifier_separator');
-	var parent_symbol = config.get('parent_symbol');
-	var empty_line_before_nested_selector = config.get('empty_line_before_nested_selector');
+class TextLine {
+  constructor(text = '', level = 0, autoindent = true) {
+    this.text = text;
+    this.level = level;
+    this.autoindent = autoindent;
+  }
 
-	// Comment style
-	var comment_style = config.get('comment_style');
-	var comment_symbol_beginning = "/* ";
-	var comment_symbol_end = " */";
+  incIndent(inc = 1) {
+    const level = this.autoindent ? this.level + inc : this.level;
+    return new TextLine(this.text, level, this.autoindent);
+  }
 
-	if ( comment_style == "scss" ) {
-		var comment_symbol_beginning = "// ";
-		var comment_symbol_end = "";
-	}
+  getString(indentation = '') {
+    return indentation.repeat(this.level) + this.text;
+  }
+}
 
-	var output = "";
-	var selectors = [];
+function buildRuleLines(selector, comment, children = [], opts = {}) {
+  const output = [];
 
-	// build tree
-	for (let i = 0; i < data.length; i++) {
-		var selector = data[i];
-		var block = {};
-		var element = {};
+  if (opts.emptyLineBeforeSelector) {
+    output.push(new TextLine('', 0, false));
+  }
 
-		if ( selector.indexOf( element_separator ) != -1 ) {
+  if (comment) {
+    const isSCSS = opts.commentStyle === 'scss';
+    const commentOpen = isSCSS ? '// ' : '/* ';
+    const commentClose = isSCSS ? '' : ' */';
 
-			var parts = selector.split( element_separator );
+    const text = commentOpen + comment + commentClose;
+    output.push(new TextLine(text));
+  }
 
-			// check if block with this name exist already
-			var hasBlock = selectors.findIndex(el => el.name == parts[0]);
+  const bracketOpen = opts.brackets ? ' {' : '';
+  const bracketClose = opts.brackets ? '}' : '';
 
-			// if block is exist link to list
-			if ( hasBlock > -1 )
-				block = selectors[ hasBlock ];
+  if (children.length === 0) {
+    if (opts.bracketsNewLineAfter) {
+      output.push(new TextLine(selector + bracketOpen));
+      output.push(new TextLine(bracketClose));
+    } else {
+      output.push(new TextLine(selector + bracketOpen + bracketClose));
+    }
+  } else {
+    output.push(new TextLine(selector + bracketOpen));
+    children.forEach(s => output.push(s.incIndent()));
+    output.push(new TextLine(bracketClose));
+  }
 
-			// if block is not exist give it name
-			if ( hasBlock == -1 )
-				block.name	= parts[0];
+  return output;
+}
 
-			// if elements list exist in block
-			if ( !( 'elements' in block ) )
-				block.elements = [];
+function generateBEM(classesSet, opts) {
+  const {
+    indentation,
+    elementSeparator,
+    modifierSeparator,
+    parentSymbol,
+    addComment
+  } = opts;
 
-			// get element and his modifier
-			var elementParts = parts[1].split(modifier_separator);
+  const blocksMap = new Map();
 
-			// check if element with this name exist in block already
-			var hasElement = block.elements.findIndex(el => el.name == elementParts[0] );
+  // build map
+  for (const selector of classesSet) {
+    const isElement = selector.includes(elementSeparator);
 
-			// if element is exist link to list
-			if ( hasElement > -1 )
-				element = block.elements[ hasElement ];
+    if (isElement) {
+      const [bName, elRest] = selector.split(elementSeparator);
 
-			// if element is not exist give it name
-			if ( hasElement == -1 )
-				element.name = elementParts[0];
+      if (opts.ignore.includes(bName)) continue;
+      if (opts.ignoreRegex.some(r => r.test(bName))) continue;
 
-			// if element has modifier
-			if ( elementParts.length > 1 ) {
-				// if modifiers list exist in element
-				if ( !( 'modifiers' in element ) )
-					element.modifiers = [];
+      const isExistBlock = blocksMap.has(bName);
+      const block = isExistBlock ? blocksMap.get(bName) : { name: bName, elements: new Map(), modifiers: new Set() };
 
-				// add modifier
-				element.modifiers.push( elementParts[1] );
-			}
+      if (!isExistBlock) blocksMap.set(bName, block);
 
-			// if it is new element add it to block
-			if ( hasElement == -1 )
-				block.elements.push(element);
+      // get element and its modifier
+      const [elName, elMod] = elRest.split(modifierSeparator);
 
-			// if it is new block add it to list
-			if ( hasBlock == -1 ) {
-				selectors.push( block );
-			}
-		} else if ( selector.indexOf( modifier_separator ) != -1 ) {
-			var parts = selector.split( modifier_separator );
+      const isExistElement = block.elements.has(elName);
+      const element = isExistElement ? block.elements.get(elName) : { name: elName, modifiers: new Set() };
 
-			var hasBlock = selectors.findIndex(el => el.name == parts[0]);
+      if (!isExistElement) block.elements.set(elName, element);
 
-			if ( hasBlock > -1 )
-				block = selectors[ hasBlock ];
+      if (elMod) {
+        element.modifiers.add(elMod);
+      }
 
-			if ( hasBlock == -1 )
-				block.name = parts[0];
+    } else {
+      const [bName, bMod] = selector.split(modifierSeparator);
+      
+      if (opts.ignore.includes(bName)) continue;
+      if (opts.ignoreRegex.some(r => r.test(bName))) continue;
 
-			if ( !( 'modifiers' in block ) )
-				block.modifiers = [];
+      const isExistBlock = blocksMap.has(bName);
+      const block = isExistBlock ? blocksMap.get(bName) : { name: bName, elements: new Map(), modifiers: new Set() };
 
-			// add modifier
-			block.modifiers.push( parts[1] );
+      if (!isExistBlock) blocksMap.set(bName, block);
 
-			if ( hasBlock == -1 )
-				selectors.push( block );
-		} else {
-			var hasBlock = selectors.findIndex(el => el.name == selector);
+      if (bMod) {
+        block.modifiers.add(bMod);
+      }
+    }
+  }
 
-			if ( hasBlock == -1 ) {
-				block.name = selector;
-				selectors.push( block );
-			}
-		}
-	}
+  const indentedStrings = [];
+  for (const block of blocksMap.values()) {
+    const blockMods = [];
+    const blockEls = [];
 
-	// format output
-	selectors.forEach( function ( block ) {
-		if ( brackets ) {
-			output += "." + block.name + " {\n";
-		} else {
-			output += "." + block.name + "\n";
-		}
+    for (const modifier of block.modifiers) {
+      const comment = addComment ? '.' + block.name + modifierSeparator + modifier : '';
+      const lines = buildRuleLines(parentSymbol + modifierSeparator + modifier, comment, [], opts);
+      blockMods.push(...lines);
+    }
 
-		var indent = indentation;
-		var indent1 = indent + indent;
-		var indent2 = indent + indent + indent;
+    for (const element of block.elements.values()) {
+      const elMods = [];
 
-		if ( empty_line_before_nested_selector ) {
-			var empty_line = "\n";
-		} else {
-			var empty_line = "";
-		}
+      for (const modifier of element.modifiers) {
+        const comment = addComment ? '.' + block.name + elementSeparator + element.name + modifierSeparator + modifier : '';
+        const lines = buildRuleLines(parentSymbol + modifierSeparator + modifier, comment, [], opts);
+        elMods.push(...lines);
+      }
 
-		if ( ( 'modifiers' in block ) ) {
-			block.modifiers.forEach( function ( modifier ) {
-				if ( brackets ) {
-					if ( brackets_newline_after ) {
-						if ( add_comments )
-							output += empty_line + indent1 + comment_symbol_beginning + "." + block.name + modifier_separator + modifier + comment_symbol_end + "\n";
+      const comment = addComment ? '.' + block.name + elementSeparator + element.name : '';
+      const lines = buildRuleLines(parentSymbol + elementSeparator + element.name, comment, elMods, opts);
+      blockEls.push(...lines);
+    }
 
-						output += empty_line + indent1 + parent_symbol + modifier_separator + modifier + " {\n";
-						output += indent1 + "}\n";
-					} else {
-						if ( add_comments )
-							output += empty_line + indent1 + comment_symbol_beginning + "." + block.name + modifier_separator + modifier + comment_symbol_end + "\n";
+    const comment = '';
+    const lines = buildRuleLines('.' + block.name, comment, [...blockMods, ...blockEls], opts);
+    indentedStrings.push(...lines);
+  }
 
-							output += empty_line + indent1 + parent_symbol + modifier_separator + modifier + " {}\n";
-					}
-				} else {
-					if ( add_comments )
-						output += indent1 + comment_symbol_beginning + "." + block.name + modifier_separator + modifier + comment_symbol_end + "\n";
+  return indentedStrings
+    .map(s => s.getString(indentation))
+    .join('\n');
+}
 
-					output += indent1 + parent_symbol + modifier_separator + modifier + "\n";
-					output += "\n";
-				}
-			});
-		}
+function generateFlat(classesSet, opts) {
+  const indentation = opts.indentation;
+  const indentedStrings = [];
 
-		if ( ( 'elements' in block ) ) {
-			block.elements.forEach( function ( element ) {
-				if ( brackets ) {
-					if ( brackets_newline_after ) {
-						if ( add_comments )
-							output += empty_line + indent1 + comment_symbol_beginning + "." + block.name + element_separator + element.name + comment_symbol_end + "\n";
+  for (const className of classesSet) {
 
-						output += empty_line + indent1 + parent_symbol + element_separator + element.name + " {\n";
-					} else {
-						if ( add_comments )
-							output += empty_line + indent1 + comment_symbol_beginning + "." + block.name + element_separator + element.name + comment_symbol_end + "\n";
+    if (opts.ignore.includes(className)) continue;
+    if (opts.ignoreRegex.some(r => r.test(className))) continue;
 
-						output += empty_line + indent1 + parent_symbol + element_separator + element.name + " {";
-					}
-				} else {
-					if ( add_comments )
-						output += empty_line + indent1 + comment_symbol_beginning + "." + block.name + element_separator + element.name + comment_symbol_end + "\n";
+    const lines = buildRuleLines('.' + className, null, [], opts);
+    indentedStrings.push(...lines);
+  }
 
-					output += empty_line + indent1 + parent_symbol + element_separator + element.name + "\n";
-				}
-
-				if ( ( 'modifiers' in element ) ) {
-					if (!brackets_newline_after )
-						output += "\n";
-
-					element.modifiers.forEach( function ( modifier ) {
-						if ( brackets ) {
-							if ( brackets_newline_after ) {
-								if ( add_comments )
-									output += empty_line + indent2 + comment_symbol_beginning + "." + block.name + element_separator + element.name + modifier_separator + modifier + comment_symbol_end + "\n";
-
-								output += empty_line + indent2 + parent_symbol + modifier_separator + modifier + " {\n";
-								output += indent2 + "}\n";
-							} else {
-								if ( add_comments )
-									output += empty_line + indent2 + comment_symbol_beginning + "." + block.name + element_separator + element.name + modifier_separator + modifier + comment_symbol_end + "\n";
-
-								output += empty_line + indent2 + parent_symbol + modifier_separator + modifier + " {}\n";
-							}
-						} else {
-							if ( add_comments )
-								output += empty_line + indent2 + comment_symbol_beginning + "." + block.name + element_separator + element.name + modifier_separator + modifier + comment_symbol_end + "\n";
-
-							output += empty_line + indent2 + parent_symbol + modifier_separator + modifier + "\n";
-							output += "\n";
-						}
-					});
-				}
-
-				if ( brackets ) {
-					if ( brackets_newline_after ) {
-						output += indent1 + "}\n";
-					} else {
-						if ( ( 'modifiers' in element ) ) {
-							output += indent1 + "}\n";
-						} else {
-							output += "}\n";
-						}
-					}
-				} else {
-					output += "\n";
-				}
-			});
-		}
-
-		if ( brackets ) {
-			output += "}\n";
-		} else {
-			output += "\n";
-		}
-	});
-
-	if ( !brackets ) {
-		output = output.replace("\n\n\n\n", "\n\n");
-		output = output.replace("\n\n\n", "\n\n");
-	}
-
-	return output;
+  return indentedStrings
+    .map(s => s.getString(indentation))
+    .join('\n');
 }
 
 exports.activate = activate;
 
 // this method is called when your extension is deactivated
-function deactivate() {
-}
+function deactivate() {}
 exports.deactivate = deactivate;
