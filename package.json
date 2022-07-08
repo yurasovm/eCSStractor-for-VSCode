@@ -2,17 +2,17 @@
 	"name": "ecsstractor-port",
 	"displayName": "eCSStractor for VSCode",
 	"description": "VSCode plugin for extracting class names from HTML and generate CSS stylesheet for following work.",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"icon": "images/icon.png",
-	"homepage": "https://github.com/yurasovm/eCSStractor-for-VSCode",
+	"homepage": "https://github.com/RAX7/eCSStractor-for-VSCode",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/yurasovm/eCSStractor-for-VSCode"
+		"url": "https://github.com/RAX7/eCSStractor-for-VSCode"
 	},
 	"keywords": [
 		"ecsstractor"
 	],
-	"publisher": "diz",
+	"publisher": "RAX7",
 	"engines": {
 		"vscode": "^1.5.0"
 	},
@@ -161,15 +161,13 @@
 		"postinstall": "node ./node_modules/vscode/bin/install"
 	},
 	"devDependencies": {
-		"@types/mocha": "^2.2.32",
-		"@types/node": "^6.14.13",
-		"eslint": "^3.6.0",
-		"mocha": "^2.3.3",
-		"typescript": "^2.0.3",
-		"vsce": "^1.93.0",
+		"@types/node": "^18.0.3",
+		"eslint": "^8.19.0",
+		"typescript": "^4.7.4",
+		"vsce": "^2.9.2",
 		"vscode": "^1.1.37"
 	},
 	"dependencies": {
-		"htmlparser2": "^3.10.1"
+		"htmlparser2": "^8.0.1"
 	}
 }
