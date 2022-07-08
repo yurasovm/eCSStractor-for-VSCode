@@ -156,7 +156,7 @@
 		}
 	},
 	"scripts": {
-		"install-extension": "code --install-extension ecsstractor-port-0.1.0.vsix",
+		"install-extension": "code --install-extension ecsstractor-port-0.2.0.vsix",
 		"build": "vsce package",
 		"postinstall": "node ./node_modules/vscode/bin/install"
 	},
